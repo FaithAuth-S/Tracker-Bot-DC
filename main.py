@@ -108,19 +108,43 @@ async def log_lecture(interaction: discord.Interaction, subject: str, lecture_nu
         ephemeral=False
     )
 
+from datetime import datetime, date
+
 @bot.tree.command(name="today", description="Get your daily CA Inter itinerary")
 async def today_plan(interaction: discord.Interaction):
     """
-    Fetches today's targets based on the bucket algorithm.
+    Fetches today's targets by querying the database.
     """
+    # 1. Logic: Determine "Day Number" (Assuming Day 1 is June 26)
+    start_date = date(2026, 6, 26)
+    today = date.today()
+    day_num = (today - start_date).days + 1
+    
+    # 2. Logic: Query the database for the lectures assigned to this day
+    # This logic assumes we add a 'day_assigned' field to your DB lectures.
+    # For now, let's pull all incomplete lectures for the 'current' batch.
+    
+    # Simple fetch: Get first 6 incomplete lectures (matches your Day 1)
+    cursor = db.lectures.find({"completed": False}).limit(6)
+    lectures = await cursor.to_list(length=6)
+    
+    if not lectures:
+        await interaction.response.send_message("🎉 You are all caught up!")
+        return
+
+    # 3. Format the embed
     embed = discord.Embed(
-        title="📅 Today's Study Plan",
-        description="Here is what you need to cover today to stay on track for Sept 30, 2026.",
+        title=f"📅 Study Plan - Day {day_num}",
+        description="Here is what you need to cover today to stay on track.",
         color=discord.Color.blue()
     )
-    embed.add_field(name="📘 Accounts", value="AS 13 (Lec 4, 5)", inline=False)
-    embed.add_field(name="⚖️ Law", value="Share Capital (Lec 1)", inline=False)
-    embed.add_field(name="🧾 Tax", value="PGBP (Lec 3)", inline=False)
+    
+    for lec in lectures:
+        embed.add_field(
+            name=f"{lec['subject']}", 
+            value=f"{lec['chapter']} (Lec {lec['lecture_number']})", 
+            inline=False
+        )
     
     await interaction.response.send_message(embed=embed)
 
